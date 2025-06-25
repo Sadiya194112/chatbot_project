@@ -1,15 +1,20 @@
 import stripe
-from .models import UserProfile
+from .models import *
+from django.views import View
+from django.http import JsonResponse
 from django.conf import settings
 from rest_framework import status
-from django.shortcuts import redirect
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.shortcuts import render, get_object_or_404, redirect
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.mixins import LoginRequiredMixin
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from .serializers import RegistrationSerializer, UserLoginSerializer, UserProfileSerializer
 
 
@@ -64,41 +69,75 @@ class UserProfileView(APIView):
     def get(self, request):
         profile = UserProfile.objects.get(user=request.user)
         serializer = UserProfileSerializer(profile)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)    
+
+class ProductListView(View):
+    def get(self, request):
+        products = Product.objects.all()
+        return render(request, 'api/product_list.html', {'products': products})
+
+class CheckoutView(LoginRequiredMixin, View):
+    def get(self, request, product_id):
+        product = get_object_or_404(Product, id=product_id)
+        return render(request, "api/checkout.html", {'product': product})
 
 
-class CreateCheckoutSessionView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes =[JWTAuthentication]
+@method_decorator(csrf_exempt, name='dispatch')
+class CreatePaymentView(LoginRequiredMixin, View):
 
-    def post(self, request):
-        YOUR_DOMAIN =  settings.YOUR_DOMAIN
+    def post(self, request, product_id):
+        # YOUR_DOMAIN =  settings.YOUR_DOMAIN
+        product = get_object_or_404(Product, id=product_id)
+        order = Order.objects.create(user=request.user, product=product, amount=product.price)
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[
                 {'price': settings.STRIPE_RECURRING_PRICE_ID, 'quantity': 1}
             ],
             mode='subscription',
-            success_url=f'{YOUR_DOMAIN}/api/payment/success/',
-            cancel_url=f'{YOUR_DOMAIN}/api/payment/cancel/',
+            customer_email = request.user.email,
+            # success_url=f'{YOUR_DOMAIN}/api/payment/success/',
+            # cancel_url=f'{YOUR_DOMAIN}/api/payment/cancel/',
+            
+            success_url='http://localhost:8001/api/success/',
+            cancel_url='http://localhost:8001/api/cancel/',
         )
+        order.stripe_checkout_session_id = checkout_session.id
+        order.save()
+        
+        # Implement is_subscribed = True
+        # profile = UserProfile.objects.get(user=request.user)
+
         return redirect(checkout_session.url, code=303)
 
 
-class PaymentSuccessView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes =[JWTAuthentication]
-    
-    def get(self, request):
-        profile = UserProfile.objects.get(user=request.user)
-        profile.is_subscribed = True
-        profile.save()
-        return Response({'message': 'Payment successful!'}, status=status.HTTP_200_OK)
 
 
-class PaymentCancelView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes =[JWTAuthentication]
+# class PaymentSuccessView(APIView):
+    # permission_classes = [IsAuthenticated]
+    # authentication_classes =[JWTAuthentication]
     
-    def get(self, request):
-        return Response({'message': 'Payment cancelled!'}, status=status.HTTP_200_OK)
+    # def get(self, request):
+    #     profile = UserProfile.objects.get(user=request.user)
+    #     profile.is_subscribed = True
+    #     profile.save()
+    #     return Response({'message': 'Payment successful!'}, status=status.HTTP_200_OK)
+
+
+def success(request):
+    profile = UserProfile.objects.get(user = request.user)
+    profile.is_subscribed = True
+    profile.save()
+    return JsonResponse({"status": "Success"})
+
+
+def cancel(request):
+    return JsonResponse({"status": "Cancel"})
+
+
+# class PaymentCancelView(APIView):
+    # permission_classes = [IsAuthenticated]
+    # authentication_classes =[JWTAuthentication]
+    
+    # def get(self, request):
+    #     return Response({'message': 'Payment cancelled!'}, status=status.HTTP_200_OK)
