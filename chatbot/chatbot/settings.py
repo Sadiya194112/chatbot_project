@@ -13,10 +13,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-e#8#$i%t^0ul0skz=h7#dbvqdo)#2dgcs(#=$w7&-kj^_5f!b-'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['irin.space', 'www.irin.space']
 
 # Application definition
 
@@ -117,6 +116,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = "/var/www/chatbot/static/"
+
+MEDIA_ROOT = "/var/www/chatbot/media/"
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# YOUR_DOMAIN =  "http://irin.space/"
+YOUR_DOMAIN =  "http://localhost:8001/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

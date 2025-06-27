@@ -105,9 +105,6 @@ class CreatePaymentView(LoginRequiredMixin, View):
         order.stripe_checkout_session_id = checkout_session.id
         order.save()
         
-        # Implement is_subscribed = True
-        # profile = UserProfile.objects.get(user=request.user)
-
         return redirect(checkout_session.url, code=303)
 
 
@@ -125,9 +122,6 @@ class CreatePaymentView(LoginRequiredMixin, View):
 
 
 def success(request):
-    profile = UserProfile.objects.get(user = request.user)
-    profile.is_subscribed = True
-    profile.save()
     return JsonResponse({"status": "Success"})
 
 
